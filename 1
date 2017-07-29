@@ -1,0 +1,133 @@
+package controller
+
+import (
+	//	"errors"
+	"fmt"
+	"github.com/Sirupsen/logrus"
+	//	"github.com/soggiest/quayctl-controller/pkg/spec"
+
+	//        apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//	kwatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	v1beta1 "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+)
+
+type Controller struct {
+	logger *logrus.Entry
+	Config
+
+	// TODO: combine the three cluster map.
+	//        clusters map[string]*cluster.Cluster
+	// Kubernetes resource version of the clusters
+	//       clusterRVs map[string]string
+	//        stopChMap  map[string]chan struct{}
+
+	//        waitCluster sync.WaitGroup
+}
+
+type Config struct {
+	Namespace string
+	//ServiceAccount string
+	KubeCli kubernetes.Interface
+}
+
+func New(cfg Config) *Controller {
+	return &Controller{
+		logger: logrus.WithField("pkg", "controller"),
+
+		Config: cfg,
+		//                clusters:   make(map[string]*cluster.Cluster),
+		//                clusterRVs: make(map[string]string),
+		//                stopChMap:  map[string]chan struct{}{},
+	}
+}
+
+func (c *Controller) Run() error {
+	var (
+		watchVer string
+		err      error
+	)
+
+	// TODO: RIGHT NOW I DONT NEED THIS TO LOOP. WHEN I GET TO THE POINT WHERE I CAN CREATE A TPR i'LL MOVE ON TO WATCHING THE TPR AND CREATING PODS
+	//	for {
+	watchVer, err := c.initResources()
+	if err == nil {
+		break
+	}
+	return nil
+	//	}
+}
+
+func (c *Controller) initResources() (string, error) {
+	watchVer := "0"
+	err := c.createDS()
+	if err != nil {
+		fmt.Println("blah")
+	}
+
+	return watchVer, nil
+}
+
+func (c *Controller) createDS() error {
+	labels := map[string]string{"quay-piece": "daemonset-puller"}
+	daemonset := &v1beta1.DaemonSet{
+		ObjectMeta: v1.ObjectMeta{
+			Namespace: "default",
+			Name:      "daemonset-quayctl-puller",
+			Labels:    labels,
+		},
+		Spec: v1beta1.DaemonSetSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: v1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: v1.PodSpec{
+					ServiceAccountName: "default",
+					ImagePullSecrets: []v1.LocalObjectReference{
+						{Name: "coreos-pull-secret"},
+					},
+					Containers: []v1.Container{
+						{
+							Name:            "puller",
+							Image:           "quay.cnqr.delivery/containerhosting/quayctl-puller:latest",
+							ImagePullPolicy: "Always",
+							Ports: []v1.ContainerPort{
+								{
+									ContainerPort: 5000,
+									HostPort:      5000,
+									Name:          "docker",
+								},
+							},
+							VolumeMounts: v1.VolumeMount{
+								{
+									Name:      "dockervol",
+									MountPath: "/var/run/docker.sock",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						Name: dockervol,
+						VolumeSource: v1.VolumeSource{
+							{
+								HostPath: v1.HostPathVolumeSource{
+									Path: "/var/run/docker.sock",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	_, err := c.KubeCli.ExtensionsV1beta1().DaemonSets("default").Create(daemonset)
+	if err != nil {
+		return err
+	}
+	ds, err := c.KubeCli.ExtensionsV1beta1().DaemonSets("default").Get(daemonset)
+	fmt.Println(ds)
+}

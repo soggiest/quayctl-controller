@@ -2,7 +2,7 @@ package utils
 
 import (
 	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	//	"k8s.io/client-go/pkg/api/v1"
 	batchv1 "k8s.io/client-go/pkg/apis/batch/v1"
 )
 
@@ -12,9 +12,10 @@ func CopyObjToJob(obj interface{}) (*batchv1.Job, error) {
 		return nil, err
 	}
 
+	//fmt.Println(objCopy)
 	job := objCopy.(*batchv1.Job)
-	if job.ObjectMeta.Status == nil {
-		pod.ObjectMeta.Annotations = make(map[string]string)
+	if job.ObjectMeta.Annotations == nil {
+		job.ObjectMeta.Annotations = make(map[string]string)
 	}
 	return job, nil
 }

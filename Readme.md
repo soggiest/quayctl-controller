@@ -8,6 +8,12 @@ Originally I investigated using a Cronjob object to deploy the containers that w
 
 A CronJob is used to deploy the controller so the pulling of images to the remote clusters can happen at regular and controllable intervals.
 
+# Prerequisites
+
+* A Quay Enterprise Image Repository v2.4.0 or greater, using the `BitTorrent Downloads`
+* A BitTorrent Tracker, such as Chihaya: [https://github.com/chihaya/chihaya]
+* Port 6881 open from the K8S nodes to the Bittorrent tracker
+
 # Deploying
 
 To deploy the `QuayCTL Controller`:

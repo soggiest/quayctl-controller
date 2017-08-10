@@ -1,0 +1,23 @@
+apiVersion: batch/v2alpha1
+kind: CronJob
+metadata:
+  name: quayctl-controller
+spec:
+  schedule: "@hourly"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - args:
+            - -logtostderr
+            - -v=2
+            name: quayctl-controller
+            image: quay.io/nicholas_lane/quay-controller:latest
+            env: 
+            - name: QUAY_IMAGES
+              value: <REPLACE_WITH_IMAGES>
+              # EXAMPLE: quay.io/nicholas_lane/chihaya:latest;quay.io/nicholas_lane/kibana:5.4.1-official
+            - name: DEADLINE_SECONDS
+              value: "300"
+          restartPolicy: OnFailure

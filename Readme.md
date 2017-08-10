@@ -1,6 +1,6 @@
 # QuayCTL Controller
 
-The `QuayCTL Controller` deploys QuayCTL images as jobs across all schedulable nodes in a Kubernetes cluster. This controller was created to fulfill a need to have necessary images available as soon as possible on Kubernetes nodes in clusters that are geographically seperated from the central image repository. In order to make this happen there needed to be a way to periodically pull necessary images to all schedulable nodes in a cluster, while taking up as little resources as possible.
+The `QuayCTL Controller` deploys [QuayCTL](https://github.com/coreos/quayctl) images as jobs across all schedulable nodes in a Kubernetes cluster. This controller was created to fulfill a need to have necessary images available as soon as possible on Kubernetes nodes in clusters that are geographically seperated from the central image repository. In order to make this happen there needed to be a way to periodically pull necessary images to all schedulable nodes in a cluster, while taking up as little resources as possible.
 
 # Why a Controller?
 
@@ -33,3 +33,8 @@ NOTE: The `DEADLINE_SECONDS` environmental value is set to 5 minutes (300 second
 glide up -v
 make quayctl-controller
 ```
+
+# Thanks
+
+* [Jimmy Zelinske](https://github.com/jzelinskie) for all his help troubleshotting my numerous BitTorrent downloading problems.
+* [Mike Metral](https://github.com/metral) who helped me wrap my head around writing controllers, who's [MemHog Operator](https://github.com/metral/memhog-operator) this controller borrows from heavily.

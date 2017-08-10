@@ -36,5 +36,5 @@ make quayctl-controller
 
 # Thanks
 
-* [Jimmy Zelinske](https://github.com/jzelinskie) for all his help troubleshotting my numerous BitTorrent downloading problems.
+* [Jimmy Zelinskie](https://github.com/jzelinskie) for all his help troubleshotting my numerous BitTorrent downloading problems.
 * [Mike Metral](https://github.com/metral) who helped me wrap my head around writing controllers, who's [MemHog Operator](https://github.com/metral/memhog-operator) this controller borrows from heavily.

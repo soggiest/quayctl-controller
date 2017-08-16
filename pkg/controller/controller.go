@@ -134,7 +134,7 @@ func (c *Controller) handleJobsUpdate(oldObj, newObj interface{}) {
 
 	if len(job.Status.Conditions) > 0 {
 		if job.Status.Conditions[0].Type == "Complete" {
-			glog.V(2).Infof("Deleting Completed Pod %+v\n", job.Name)
+			glog.V(2).Infof("Deleting Completed %+v\n", job.Name)
 			errRem := c.removeJob(job.Name)
 			if errRem != nil {
 				panic(errRem)
@@ -196,13 +196,23 @@ func (c *Controller) run() {
 	completedJobs = completedJobs[:0]
 
 	for _, job := range c.joblist {
-		if job.Status.Active == 1 {
-			//if job.Status.Succeeded == 0 && job.Status.Failed == 0 {
-			runningJobs = append(runningJobs, job)
-		}
-		if len(job.Status.Conditions) > 0 {
-			if job.Status.Conditions[0].Type == "Completed" {
-				completedJobs = append(completedJobs, job)
+		jobDeadline := c.deadlineCheck(job)
+		if jobDeadline == true {
+			glog.V(2).Infof("Job %+v has exceeded the Deadline. Killing the job.\n", job.Name)
+			errRem := c.removeJob(job.Name)
+			if errRem != nil {
+				panic(errRem)
+			}
+
+		} else {
+			if job.Status.Active == 1 {
+				//if job.Status.Succeeded == 0 && job.Status.Failed == 0 {
+				runningJobs = append(runningJobs, job)
+			}
+			if len(job.Status.Conditions) > 0 {
+				if job.Status.Conditions[0].Type == "Complete" {
+					completedJobs = append(completedJobs, job)
+				}
 			}
 		}
 	}
@@ -219,7 +229,6 @@ func (c *Controller) pullJobs() {
 	)
 
 	lo := &metav1.ListOptions{
-
 		LabelSelector: "quay-piece",
 	}
 	jobList, err := c.KubeCli.Batch().Jobs("default").List(*lo)
@@ -235,6 +244,19 @@ func (c *Controller) pullJobs() {
 
 }
 
+func (c *Controller) deadlineCheck(job *batchv1.Job) bool {
+
+	duration := time.Since(job.CreationTimestamp.UTC())
+
+	deadlineFl, _ := strconv.ParseFloat(os.Getenv("DEADLINE_SECONDS"), 64)
+
+	if duration.Seconds() > deadlineFl {
+		glog.V(2).Infof("Duration Seconds: %+v - Deadline Seconds: %+v\n", duration.Seconds(), deadlineFl)
+		return true
+	}
+	return false
+}
+
 func (c *Controller) initResources() error {
 	var (
 		err  error
@@ -243,6 +265,7 @@ func (c *Controller) initResources() error {
 	)
 
 	for index, selectLabel := range c.nodelist {
+
 		jobName := fmt.Sprintf("quayctl-puller-job-%d", index)
 
 		job, err = c.KubeCli.Batch().Jobs("default").Get(jobName, metav1.GetOptions{})
@@ -276,7 +299,10 @@ func (c *Controller) initResources() error {
 }
 
 func (c *Controller) createJob(jobName string, selector map[string]string) (*batchv1.Job, error) {
-	labels := map[string]string{"quay-piece": "quayctl-puller"}
+	//	labels := map[string]string{"quay-piece": "quayctl-puller"}
+	labels := make(map[string]string)
+	labels["quay-piece"] = "quayctl-puller"
+	labels["quay-job"] = jobName
 	seconds, serr := strconv.ParseInt(os.Getenv("DEADLINE_SECONDS"), 10, 64)
 	if serr != nil {
 		panic(serr)
@@ -351,5 +377,20 @@ func (c *Controller) createJob(jobName string, selector map[string]string) (*bat
 
 func (c *Controller) removeJob(jobName string) error {
 	err := c.KubeCli.Batch().Jobs("default").Delete(jobName, &metav1.DeleteOptions{})
+	labelSelector := fmt.Sprintf("quay-job=%+v", jobName)
+
+	lo := metav1.ListOptions{
+		LabelSelector: labelSelector,
+	}
+
+	podlist, err := c.KubeCli.CoreV1().Pods("default").List(lo)
+
+	for _, pod := range podlist.Items {
+		glog.V(2).Infof("Pod deleting %+v\n", pod.Name)
+		err := c.KubeCli.CoreV1().Pods("default").Delete(pod.Name, &metav1.DeleteOptions{})
+		if err != nil {
+			panic(err)
+		}
+	}
 	return err
 }
